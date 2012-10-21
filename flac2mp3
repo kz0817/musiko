@@ -1,0 +1,42 @@
+#!/bin/sh
+
+export LC_ALL=ja_JP.UTF-8
+
+if [ $# -lt 1 ]; then
+    echo "Usage"
+    echo "  # flac2mp3 file"
+    exit 1
+fi
+
+ifname="$1.flac"
+ofname="$1.mp3"
+wavname="$1.wav"
+if [ ! -f "$ifname" ]; then
+    echo "Failed to find:" $ifname
+    exit 1
+fi
+
+artist=`metaflac --show-tag=artist "$ifname" | sed s/artist=//`
+if [ x"$artist" = x ]; then
+    artist=Unknown
+fi
+
+title=`metaflac --show-tag=title "$ifname" | sed s/title=//`
+if [ x"$title" = x ]; then
+    title=Unknown
+fi
+
+album=`metaflac --show-tag=album "$ifname" | sed s/album=//`
+if [ x"$album" = x ]; then
+    album=Unknown
+fi
+
+echo 'file name:' $ifname
+echo 'artist:' $artist
+echo 'title :' $title
+echo 'album :' $album
+
+flac -d "$ifname" -f -o "$wavname"
+
+lame -b 256 -V2 "$wavname" "$ofname"
+eyeD3 --to-v2.3 --set-encoding=utf16-BE -a "$artist" -t "$title" -A "$album" "$ofname"

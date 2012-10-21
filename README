@@ -2,9 +2,10 @@ musiko
 ======
 
 A tool to make flac audio files from wave files.
+Optionally the flac file can be converted to mp3.
 
 ======
-* How to Use
+* How to use 'musiko.py'
 ======
 0) Environment to run
 At least the following programs are needed.
@@ -29,3 +30,19 @@ files are placed like the following, where 'info.dat' is information file.
 
 $ <path>/musiko.py info.dat
 
+======
+* How to use 'flac2mp3'
+======
+0) Environment to run
+At least the following programs are needed.
+- lame
+- eyeD3
+
+1) Run 'flac2mp3' command.
+You execute 'flac2mp3' on the directory where the flac files are put.
+
+Ex:
+$ <path>/flac2mp3 name
+
+where 'name' is the base filename of the flac file. The extension (.flac)
+shall be omitted.
