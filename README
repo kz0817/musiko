@@ -1,0 +1,30 @@
+musiko
+======
+
+A tool to make flac audio files from wave files.
+
+======
+* How to Use
+======
+0) Environment to run
+At least the following programs are needed.
+- python
+- flac
+
+1) Preparation of wave files.
+You have to put wave files in a directory. If you want to make flac files
+from CD, you can extrace wave files like below.
+
+$ cdparanoia -B
+
+2) Preparatin of music information file.
+You should put information file in the directory where the wave files are.
+The information file describes artist name, album name, and each song names.
+You can copy and edit the 'info.dat.sample'.
+
+3) Run 'musiko.py' command.
+You execute musiko.py on the directory where the wave files and inforation
+files are placed like the following, where 'info.dat' is information file.
+
+$ <path>/musiko.py info.dat
+
