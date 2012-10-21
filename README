@@ -13,7 +13,7 @@ At least the following programs are needed.
 
 1) Preparation of wave files.
 You have to put wave files in a directory. If you want to make flac files
-from CD, you can extrace wave files like below.
+from a CD, you can extract wave files like below.
 
 $ cdparanoia -B
 
