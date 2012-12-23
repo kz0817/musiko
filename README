@@ -24,6 +24,13 @@ The information file describes artist name, album name, and each song names.
 The sample is 'sample-info.dat' included in this package. You can copy and
 edit it.
 
+If the information is registered in CDDB, you can generate info.dat with
+the following command.
+
+$ <path>/mkinfodat.py > info.dat
+
+Note: The above command shall be executed when a CD is inserted.
+
 3) Run 'musiko.py' command.
 You execute musiko.py on the directory where the wave files and inforation
 files are placed like the following, where 'info.dat' is information file.
