@@ -1,7 +1,11 @@
 #!/usr/bin/env python
+import sys
 import fcntl
 import struct
 import urllib
+import string
+import xml.sax
+from xml.sax.handler import ContentHandler
 
 CDROM_LBA = 0x01
 CDROM_MSF = 0x02
@@ -12,8 +16,11 @@ CDROMREADTOCENTRY = 0x5306
 
 FRAMES_PER_SECOND = 75
 
-cd_device = "/dev/sr0"
-default_server = 'http://freedb.freedb.org/~cddb/cddb.cgi'
+RESPONSE_CODE_SUCCESS = 200
+
+default_cd_device = "/dev/cdrom"
+default_server = "http://freedb.freedb.org/~cddb/cddb.cgi"
+default_xml_server = "http://www.freedb2.org"
 default_user = "unknown"
 default_hostname = "localhost"
 client_name = "musiko"
@@ -64,15 +71,86 @@ class track_info:
   def get_num_frames(self, track):
     return self._frame_dict[track]
 
+class xml_data_handler(ContentHandler):
+  def __init__(self):
+    ContentHandler.__init__(self)
+    self._in_track = False
+    self._title_dict = {}
+
+  def startElement(self, name, attrs):
+    self._currContent = None
+    if name == "track":
+      self._in_track = True
+
+  def endElement(self, name):
+    self._currElem = None
+    if self._in_track == False:
+      if name == "title":
+        self._album_title = self._curr_content
+      elif name == "artist":
+        self._album_artist = self._curr_content
+    else:
+      if name == "number":
+        self._curr_track = string.atoi(self._curr_content)
+      elif name == "title":
+        self._title_dict[self._curr_track] = self._curr_content
+
+  def characters(self, content):
+    self._curr_content = content
+
+  def get_album_artist(self):
+    return self._album_artist
+
+  def get_album_title(self):
+    return self._album_title
+
+  def get_num_tracks(self):
+    return len(self._title_dict)
+
+  def get_track_title(self, track):
+    return self._title_dict[track]
+
+# ----------------------------------------------------------------------------
+# functions
+# ----------------------------------------------------------------------------
+def parse_xml_data(xml_data):
+  parser = xml.sax.make_parser()
+  handler = xml_data_handler()
+  parser.setContentHandler(handler)
+  parser.feed(xml_data)
+
+  # generate info.dat
+  print "Artist: %s" % handler.get_album_artist().encode("utf-8")
+  print "Album: %s" % handler.get_album_title().encode("utf-8")
+  for track in range(handler.get_num_tracks()):
+    idx = track + 1
+    print "%d: %s" % (idx, handler.get_track_title(idx).encode("utf-8"))
+
 # ----------------------------------------------------------------------------
 # main routine
 # ----------------------------------------------------------------------------
+cd_device = default_cd_device
+xml_data_file = None
+num_arg = len(sys.argv)
+arg_idx = 1
+while (arg_idx < num_arg):
+  arg = sys.argv[arg_idx]
+  if arg == "--xml-data-file":
+    arg_idx += 1
+    xml_data_file = sys.argv[arg_idx]
+  arg_idx += 1
+
+if xml_data_file != None:
+    xml_data = open(xml_data_file).read()
+    parse_xml_data(xml_data)
+    sys.exit(1)
+
+# open CDROM
+sys.stderr.write("CDROM: %s\n" % cd_device)
 fd = open(cd_device, "rb")
 cdrom_tochdr = struct.pack("BB", 0, 0)
 cdrom_tochdr = fcntl.ioctl(fd, CDROMREADTOCHDR, cdrom_tochdr)
 (cdth_trk0, cdth_trk1) = struct.unpack("BB", cdrom_tochdr)
-print cdth_trk0
-print cdth_trk1
 
 # Ref. /usr/include/linux/cdrom.h
 # _u8 cdte_track, cdte_addr:4, cdte_ctrl:4, cdte_format
@@ -87,14 +165,10 @@ for track in range(cdth_trk0, cdth_trk1+1) + [CDROM_LEADOUT]:
   if track != CDROM_LEADOUT:
     csum.update(minute, second)
   trk_info.add(track, minute, second, frame)
-  print "%d:%d - %d" % (minute, second, frame),
-  print "%d, %02x, %02x, %d, %08x" % (cdte_track, cdte_adrctrl, cdte_format, cdte_addr, cdte_mode)
 
 checksum = csum.get_sum()
 total_time = trk_info.get_total_time_in_sec()
 discid = ((long(checksum) % 0xff) << 24 | total_time << 8 | cdth_trk1)
-print "total time: %d" % total_time
-print "discid: %x" % discid
 
 query_str = "%08lx %d " % (long(discid), trk_info.num_tracks())
 for i in range(trk_info.num_tracks()):
@@ -104,4 +178,23 @@ query_str = urllib.quote_plus(query_str)
 url = "%s?cmd=cddb+query+%s&hello=%s+%s+%s+%s&proto=%i" % \
       (default_server, query_str, default_user, default_hostname,
        client_name, client_version, cddb_proto_version)
-print url
+sys.stderr.write("URL: %s\n" % url)
+
+# request
+response = urllib.urlopen(url)
+res_line = response.readline()
+res_words = string.split(res_line, " ", 3)
+code = string.atoi(res_words[0])
+if (code != RESPONSE_CODE_SUCCESS):
+  sys.stderr.write("Bad Response : %s\n" % res_line)
+  system.exit(1)
+cd_category = res_words[1]
+cd_disc_id = res_words[2]
+cd_title = res_words[3]
+
+# read
+url = "%s/xml/%s/%s" % (default_xml_server, cd_category, cd_disc_id)
+sys.stderr.write("URL: %s\n" % url)
+response = urllib.urlopen(url)
+xml_data = response.read()
+parse_xml_data(xml_data)
