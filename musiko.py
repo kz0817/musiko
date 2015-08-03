@@ -3,6 +3,7 @@ import os
 import sys
 import re
 import subprocess
+import argparse
 
 def parse_line(line):
     (tag, value0) = line.split(":")
@@ -86,12 +87,14 @@ def check_wav_files(cd_info, track_list):
         index += 1
     return True
 
-def do_encode_one(artist, album, track_num, title, wav_file):
+def do_encode_one(artist, album, track_num, title, wav_file, args):
     outfile_name = "%02d %s.flac" % (track_num, title)
     print "Now encoding: [%d] %s" % (track_num, title)
 
     cmd = []
     cmd.append("flac")
+    if args.force:
+        cmd.append("-f")
     cmd.append("-8")
     cmd.append("-T")
     cmd.append("artist=%s" % artist)
@@ -105,22 +108,20 @@ def do_encode_one(artist, album, track_num, title, wav_file):
     cmd.append("%s" % outfile_name)
     cmd.append("%s" % wav_file)
 
-    subprocess.call(cmd)
+    env = {"LANG": args.lang}
+    subprocess.call(cmd, env=env)
 
-def do_encode(cd_info, track_list):
+def do_encode(cd_info, track_list, args):
     artist = cd_info["Artist"]
     album = cd_info["Album"]
     for (track_num, title, wav_file) in track_list:
-        do_encode_one(artist, album, track_num, title, wav_file)
+        do_encode_one(artist, album, track_num, title, wav_file, args)
 
 
 # -----------------------------------------------------------------------------
-# Usage
+# main routine
 # -----------------------------------------------------------------------------
-def print_usage():
-    print "Usage:\n"
-    print ""
-    print "  $ %s info.dat" % sys.argv[0]
+def extra_usage():
     print ""
     print "<< NOTE >>"
     print "You shall put wave files at the current directoy like below "
@@ -145,17 +146,22 @@ def print_usage():
     print "12: Title 12"
     print ""
 
-# -----------------------------------------------------------------------------
-# main routine
-# -----------------------------------------------------------------------------
-if len(sys.argv) < 2:
-    print_usage()
-    sys.exit()
-info_file_name = sys.argv[1]
-(cd_info, track_list) = parse_info(info_file_name)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='A wav to flac converter.')
+    parser.add_argument('recipe',
+                        help="A recipe file. '_' shows a note with an example.")
+    parser.add_argument('-f', '--force', action='store_true',
+                        help="Force overwriting of output files.")
+    parser.add_argument('-l', '--lang', default='ja_JP.UTF-8')
+    args = parser.parse_args()
 
-if not check_headers(cd_info):
-    sys.exit()
-if not check_wav_files(cd_info, track_list):
-    sys.exit()
-do_encode(cd_info, track_list)
+    if args.recipe == '_':
+        extra_usage()
+        sys.exit()
+    (cd_info, track_list) = parse_info(args.recipe)
+
+    if not check_headers(cd_info):
+        sys.exit()
+    if not check_wav_files(cd_info, track_list):
+        sys.exit()
+    do_encode(cd_info, track_list, args)
