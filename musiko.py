@@ -149,13 +149,13 @@ def extra_usage():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='A wav to flac converter.')
     parser.add_argument('recipe',
-                        help="A recipe file. '_' shows a note with an example.")
+                        help="A recipe file. 'help' shows a note with an example.")
     parser.add_argument('-f', '--force', action='store_true',
                         help="Force overwriting of output files.")
     parser.add_argument('-l', '--lang', default='ja_JP.UTF-8')
     args = parser.parse_args()
 
-    if args.recipe == '_':
+    if args.recipe == 'help':
         extra_usage()
         sys.exit()
     (cd_info, track_list) = parse_info(args.recipe)
